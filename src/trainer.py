@@ -62,7 +62,7 @@ def load_model_and_tokenizer(model_name, lora_r, lora_alpha, lora_dropout):
 
     model = get_peft_model(model, lora_config)
     model.config.use_cache = False
-    model.gradient_checkpointing_enable()
+    # model.gradient_checkpointing_enable()
     model.print_trainable_parameters()
 
     return model, tokenizer
