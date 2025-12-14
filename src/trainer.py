@@ -149,7 +149,7 @@ def main():
     )
 
     print("[INFO] Starting training...")
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train()
 
     print(f"[INFO] Saving final model to: {args.output_dir}")
     trainer.save_model(args.output_dir)
