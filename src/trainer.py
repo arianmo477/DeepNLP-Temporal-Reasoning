@@ -34,14 +34,14 @@ def load_model_and_tokenizer(model_name, lora_r, lora_alpha, lora_dropout):
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",  # Recommended for QLoRA
         bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=torch.bfloat16 
+        bnb_4bit_compute_dtype=torch.float16
     )
 
     # laod model in bfloat16
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         device_map="auto",
-        torch_dtype = torch.bfloat16 if torch.cuda.is_available else torch.float32,
+        torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32,
         quantization_config=bnb_config, 
         trust_remote_code=True
     )
@@ -61,6 +61,8 @@ def load_model_and_tokenizer(model_name, lora_r, lora_alpha, lora_dropout):
     )
 
     model = get_peft_model(model, lora_config)
+    model.config.use_cache = False
+    model.gradient_checkpointing_enable()
     model.print_trainable_parameters()
 
     return model, tokenizer
@@ -93,6 +95,9 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    use_cuda = torch.cuda.is_available()
+    print(f"[INFO] Using CUDA: {use_cuda}, using fp16: {use_cuda}, bf16: False")
 
     # Load model & tokenizer
     model, tokenizer = load_model_and_tokenizer(
@@ -127,11 +132,12 @@ def main():
         logging_steps=20,
         save_steps=500,
         save_total_limit=3,
-        bf16=torch.cuda.is_available(),
-        fp16=not torch.cuda.is_available(),
+        bf16=False,
+        fp16=torch.cuda.is_available(), 
         remove_unused_columns=False,
         optim="paged_adamw_8bit",
-        report_to="none",  # or "wandb" if needed
+        report_to="tensorboard",
+        logging_dir=f"{args.output_dir}/logs"
     )
 
     trainer = Trainer(
@@ -143,7 +149,7 @@ def main():
     )
 
     print("[INFO] Starting training...")
-    trainer.train()
+    trainer.train(resume_from_checkpoint=True)
 
     print(f"[INFO] Saving final model to: {args.output_dir}")
     trainer.save_model(args.output_dir)

@@ -30,24 +30,42 @@ class TISERDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.data[idx]
-
         prompt = item["prompt"]
         answer = item["output"]
 
-        # Build training text
-        text = f"{prompt}\n{answer}"
+        full_text = f"{prompt}\n{answer}{self.tokenizer.eos_token}"
+        prompt_text = f"{prompt}\n"
 
-        
         enc = self.tokenizer(
-            text,
+            full_text,
             truncation=True,
-            padding="max_length",
             max_length=self.max_length,
-            return_tensors="pt"
+            padding="max_length",
+            return_tensors="pt",
         )
 
+        input_ids = enc["input_ids"].squeeze(0)
+        attention_mask = enc["attention_mask"].squeeze(0)
+
+        labels = input_ids.clone()
+
+        # Mask padding
+        labels[attention_mask == 0] = -100
+
+        # Compute prompt length
+        prompt_enc = self.tokenizer(
+            prompt_text,
+            add_special_tokens=False
+        )
+        prompt_len = len(prompt_enc["input_ids"])
+
+        # Mask prompt tokens safely
+        seq_len = attention_mask.sum().item()
+        mask_len = min(prompt_len, seq_len)
+        labels[:mask_len] = -100
+
         return {
-            "input_ids": enc["input_ids"].squeeze(0),
-            "attention_mask": enc["attention_mask"].squeeze(0),
-            "labels": enc["input_ids"].squeeze(0),
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
         }
