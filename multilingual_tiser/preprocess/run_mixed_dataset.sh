@@ -31,13 +31,13 @@ SCRIPT="scripts/data/build_mixed_dataset.py"
 # ===============================
 for f in "$EN_FILE" "$IT_FILE" "$FA_FILE"; do
   if [[ ! -f "$f" ]]; then
-    echo "❌ Missing file: $f"
+    echo "Missing file: $f"
     exit 1
   fi
 done
 
 if [[ ! -f "$SCRIPT" ]]; then
-  echo "❌ Missing script: $SCRIPT"
+  echo "Missing script: $SCRIPT"
   exit 1
 fi
 
@@ -46,13 +46,13 @@ mkdir -p "$(dirname "$OUT_FILE")"
 # ===============================
 # INFO
 # ===============================
-echo "🧩 Building mixed multilingual dataset"
-echo "📂 Category         : $CATEGORY"
-echo "📄 EN file          : $EN_FILE"
-echo "📄 IT file          : $IT_FILE"
-echo "📄 FA file          : $FA_FILE"
-echo "🔢 Samples per lang : $SAMPLES_PER_LANG"
-echo "📁 Output           : $OUT_FILE"
+echo "Building mixed multilingual dataset"
+echo "Category         : $CATEGORY"
+echo "EN file          : $EN_FILE"
+echo "IT file          : $IT_FILE"
+echo "FA file          : $FA_FILE"
+echo "Samples per lang : $SAMPLES_PER_LANG"
+echo "Output           : $OUT_FILE"
 echo "=============================="
 
 # ===============================

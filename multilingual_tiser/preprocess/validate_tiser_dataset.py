@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+
+
 import argparse
 import re
 from collections import defaultdict
-from utils.utils import load_json, save_json, load_prompt_file, UNKNOWN_TRIGGERS
+from utils.utils import load_json, repair_mangled_unicode, repair_mangled_unicode, save_json, load_prompt_file, UNKNOWN_TRIGGERS
 
 
 # ==================================================
@@ -180,6 +182,12 @@ def main():
     # 1. Load
     raw_data = load_json(args.input)
     print(f"Raw samples: {len(raw_data)}")
+
+    #1.5 FIX UNICODE ISSUES ONCE, GLOBALLY
+    for s in raw_data:
+        for k in ["question", "temporal_context", "output", "answer", "answer_en", "prompt"]:
+            if k in s and isinstance(s[k], str):
+                s[k] = repair_mangled_unicode(s[k])
 
     # 2. Normalize
     if args.split == "train":

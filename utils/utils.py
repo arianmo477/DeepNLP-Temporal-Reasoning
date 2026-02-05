@@ -1,5 +1,6 @@
 # utils/utils.py
 
+
 import os
 import json
 import gc
@@ -7,6 +8,8 @@ import re
 import string
 from collections import Counter
 import torch
+import random
+from collections import defaultdict
 
 # ==================================================
 # GPU / MEMORY
@@ -43,9 +46,25 @@ def load_json(path):
         return [json.loads(line) for line in f if line.strip()]
 
 
+def _strip_invalid_unicode(obj):
+    """
+    Recursively removes invalid unicode surrogates from strings.
+    """
+    if isinstance(obj, str):
+        return obj.encode("utf-8", "ignore").decode("utf-8")
+    elif isinstance(obj, list):
+        return [_strip_invalid_unicode(x) for x in obj]
+    elif isinstance(obj, dict):
+        return {k: _strip_invalid_unicode(v) for k, v in obj.items()}
+    else:
+        return obj
+
+
 def save_json(path, data):
+    clean_data = _strip_invalid_unicode(data)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        json.dump(clean_data, f, indent=2, ensure_ascii=False)
+
 
 
 def load_prompt_file(path: str) -> str:
@@ -69,6 +88,15 @@ def load_txt_as_string(path: str, fallback: str = "") -> str:
 # ==================================================
 # UNICODE / TEMPORAL / ENTITY
 # ==================================================
+
+def repair_mangled_unicode(text: str) -> str:
+    if not text or not isinstance(text, str):
+        return text
+    try:
+        return text.encode("latin1").decode("utf8")
+    except Exception:
+        return text
+
 
 _U_ESCAPE_RE = re.compile(r"u([0-9a-fA-F]{4})")
 
@@ -99,9 +127,9 @@ def normalize_temporal(text: str) -> str:
 
 
 PAREN_ENTITY_RE = re.compile(r"\(([^()]+)\)")
-
 def make_ent_token(i: int) -> str:
     return f"⟪ENT{i:06d}⟫"
+
 
 
 def mask_parenthesized_entities(text: str):
@@ -124,15 +152,32 @@ def mask_parenthesized_entities(text: str):
 
 
 def unmask_entities(text: str, mapping: dict) -> str:
+    """
+    Robustly restores masked parenthesized entities.
+    Handles cases where MT slightly corrupts the placeholder
+    (spaces, quotes, brackets, etc.).
+    """
     if not text or not mapping:
         return text
-    id_map = {
-        re.search(r"(\d{6})", k).group(1): v
-        for k, v in mapping.items()
-    }
-    pattern = re.compile(r"⟪ENT(\d{6})⟫")
-    return pattern.sub(lambda m: id_map.get(m.group(1), m.group(0)), text)
 
+    for tok, original in mapping.items():
+        # Extract numeric ID from token ⟪ENT000001⟫
+        m = re.search(r"ENT(\d{6})", tok)
+        if not m:
+            continue
+        ent_id = m.group(1)
+
+        # Robust pattern: allow spaces, quotes, brackets around ENT + id
+        pattern = re.compile(
+            r"[\s\"'«»⟪⟫\[\]\(\)]*ENT\s*"
+            + ent_id +
+            r"[\s\"'«»⟪⟫\[\]\(\)]*",
+            re.IGNORECASE
+        )
+
+        text = pattern.sub(original, text)
+
+    return text
 
 # ==================================================
 # LANGUAGE NORMALIZATION
@@ -252,3 +297,36 @@ def calculate_metrics(pred: str, gold: str):
     f1 = 0.0 if overlap == 0 else 2 * overlap / (len(pt) + len(gt))
 
     return em, soft, f1
+
+
+
+def balance_by_dataset_name(data, max_samples, seed=42):
+    random.seed(seed)
+
+    buckets = defaultdict(list)
+    for x in data:
+        buckets[x["dataset_name"]].append(x)
+
+    names = list(buckets.keys())
+    n = len(names)
+    base = max_samples // n
+
+    selected = []
+    leftovers = []
+
+    for name in names:
+        if len(buckets[name]) <= base:
+            selected.extend(buckets[name])
+            leftovers += buckets[name][:]
+        else:
+            sel = random.sample(buckets[name], base)
+            selected.extend(sel)
+            leftovers += [x for x in buckets[name] if x not in sel]
+
+    remaining = max_samples - len(selected)
+    if remaining > 0 and leftovers:
+        selected.extend(random.sample(leftovers, min(remaining, len(leftovers))))
+
+    random.shuffle(selected)
+    return selected
+

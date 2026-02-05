@@ -78,7 +78,7 @@ def main():
     save_json(mixed, out_path)
 
     print(f"Saved mixed dataset to: {out_path}")
-    print("✅ Mixed dataset created successfully!")
+    print("Mixed dataset created successfully!")
 
 
 if __name__ == "__main__":
