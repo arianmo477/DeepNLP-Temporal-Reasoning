@@ -4,14 +4,14 @@ set -e
 export PYTHONPATH="$(pwd):$PYTHONPATH"
 
 # Usage:
-# bash multilingual_tiser/translation/run_translation.sh [it|fa|both] [train|test] [max_samples(optional)]
+# bash multilingual_tiser/translation/run_translation.sh [it|fa|de] [train|test] [max_samples(optional)]
 
 LANGUAGE=$1
 CATEGORY=$2
 MAX_SAMPLES=${3:-0}
 
 if [[ -z "$LANGUAGE" || -z "$CATEGORY" ]]; then
-  echo "Usage: bash multilingual_tiser/translation/run_translation.sh [it|fa|de|both] [train|test] [max_samples]"
+  echo "Usage: bash multilingual_tiser/translation/run_translation.sh [it|fa|de] [train|test] [max_samples]"
   exit 1
 fi
 

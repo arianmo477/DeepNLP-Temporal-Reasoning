@@ -5,7 +5,13 @@
 import argparse
 import re
 from collections import defaultdict
-from utils.utils import load_json, repair_mangled_unicode, repair_mangled_unicode, save_json, load_prompt_file, UNKNOWN_TRIGGERS
+from utils.utils import (
+    load_json,
+    repair_mangled_unicode,
+    save_json,
+    load_txt_as_string,
+    UNKNOWN_TRIGGERS,
+)
 
 
 # ==================================================
@@ -149,20 +155,26 @@ def remove_void_question_ids(data):
 # ==================================================
 # VALIDATION (REPORT ONLY)
 # ==================================================
-def validate_sample(sample):
+def validate_sample(sample, split):
     errors = []
-    for field in REQUIRED_FIELDS:
+
+    required = REQUIRED_FIELDS if split == "train" else [
+        "dataset_name", "question_id", "question", "prompt", "answer"
+    ]
+
+    for field in required:
         if field not in sample:
             errors.append(f"missing:{field}")
         elif not isinstance(sample[field], str):
             errors.append(f"non_string:{field}")
         elif sample[field].strip() == "":
             errors.append(f"empty:{field}")
-        elif field == "answer" and is_unknown_answer(sample[field]):
-            errors.append("unknown_answer")
-        elif field == "question_id" and sample[field].strip() == "":
-            errors.append("void_question_id")
+
+    if split == "train" and is_unknown_answer(sample.get("answer", "")):
+        errors.append("unknown_answer")
+
     return errors
+
 
 # ==================================================
 # MAIN
@@ -177,7 +189,7 @@ def main():
     parser.add_argument("--max_print", type=int, default=5)
     args = parser.parse_args()
 
-    canonical_prompt = load_prompt_file(args.prompt_file)
+    canonical_prompt = load_txt_as_string(args.prompt_file)
 
     # 1. Load
     raw_data = load_json(args.input)
@@ -229,7 +241,7 @@ def main():
     error_stats = defaultdict(int)
 
     for idx, sample in enumerate(data):
-        errs = validate_sample(sample)
+        errs = validate_sample(sample, args.split)
         if errs:
             invalid_samples.append({
                 "index": idx,
