@@ -30,7 +30,11 @@ dependencies:
       - trl>=0.8.0
       - wandb>=0.16.0
       - bitsandbytes
+      - tokenizers>=0.15.0
+      - regex
 
-     # Other
+      # Other
       - sentence-transformers>=2.5.0
-      
+      - langdetect 
+
+     
